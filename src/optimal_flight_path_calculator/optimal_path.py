@@ -41,7 +41,7 @@ class Node:
         self.wind_lon = wind_lon
         self.wind_lat = wind_lat
 
-def plot_wind (ax):
+def plot_wind(ax):
     step = 1
     for j in range(0,len(lat_axis), step):
         for i in range(0,len(lon_axis), step):
@@ -55,65 +55,20 @@ def plot_wind (ax):
             if (abs(vx) > 0.5) or (abs(vy) > 0.5):
                 ax.arrow(node.lon, node.lat, vx, vy, head_length = 0.15, head_width = 0.15)
                 #ax.arrow(node.lon, node.lat, node.wind_lon, node.wind_lat, head_length = 0.15, head_width = 0.15)
-'''
-def animate(x1, y1, x2, y2, str1, str2, str3):
-    fig, ax = plt.subplots()
-    fig.set_layout_engine('tight')
-    fig.set_figwidth(12)
-    fig.set_figheight(8)
-    #fig.set_dpi(600)
-    xdata1, ydata1 = [], []
-    xdata2, ydata2 = [], []
-    ln1, = ax.plot([], [], color='g')
-    ln2, = ax.plot([], [], color='b')
 
-    def init():
-        usa_shp_df.boundary.plot(ax=ax, color='r', linewidth=1)
-        ax.set_xlim(usa_bbox[0]-1, usa_bbox[2]+1)
-        ax.set_ylim(usa_bbox[1]-1, usa_bbox[3]+1)
-        ax.text(lon_origin-1, lat_origin-1, "Origin", color='g', fontsize='small',fontweight='bold')
-        ax.text(lon_destination-1, lat_destination-1, "Dest", color='b', fontsize='small',fontweight='bold')
-        ax.text(-124, 29, str1, color='k',fontsize='small')
-        ax.text(-124, 28, str2, color='g',fontsize='small')
-        ax.text(-124, 27, str3, color='b',fontsize='small')
-        plot_wind(ax)
-        return ln1, ln2,
-
-    def update(frame):
-        if frame < len(x1):
-            xdata1.append(x1[frame])
-            ydata1.append(y1[frame])
-            ln1.set_data(xdata1, ydata1)
-        if frame < len(x2):
-            xdata2.append(x2[frame])
-            ydata2.append(y2[frame])
-            ln2.set_data(xdata2, ydata2)
-        return ln1, ln2,
-
-    # max_frames = max(len(x1), len(x2))
-    # ani = FuncAnimation(fig, update, frames=range(max_frames), init_func=init, blit=True)
-    #plt.show()
-    #ani.save(filename='flight/fly-euclidean-' + str(euclidean) + "-wind-" + str(wind_magnitude) + "-" + str(ngrid_lon) + "-" + str(ngrid_lat) + ".gif", writer='imagemagick')
-    # ani.save(filename='flight/fly-euclidean-' + str(euclidean) + "-wind-" + str(wind_magnitude) + "-" + str(ngrid_lon) + "-" + str(ngrid_lat) + ".gif")
-
-    # new_plot = fig.add_subplot()
-    # new_plot.plot(x1, y1, color='g')
-    # new_plot.plot(x2, y2, color='b')
-    plt.plot(x1, y1, color='g', linestyle='--')
-    plt.close(fig)
-    plt.savefig("flight/euclidean-" + str(euclidean) + "-wind-" + str(wind_magnitude) + "-" + str(ngrid_lon) + "-" + str(ngrid_lat) + ".jpeg")
-'''
-
-def get_lat_long ():
-    lat_long_file: str = "./lat-long-data/uscities.csv"
+def get_csv_lat_lon():
+    lat_long_file: str = "./lat-long-data/airports.csv"
     lat_long_df = pandas.read_csv(lat_long_file)
-    cities = list(lat_long_df["city_ascii"])
-    states = list(lat_long_df["state_id"])
-    lat = list(lat_long_df["lat"])
-    lng = list(lat_long_df["lng"])
-    city_state = [cities[i] + "," + states[i] for i in range(len(cities))]
-    lat_long_info = {city_state[i] : (lat[i], lng[i]) for i in range(len(city_state))}
-
+    iata_codes = list(lat_long_df["IATA"])
+    lats = list(lat_long_df["LATITUDE"])
+    lons = list(lat_long_df["LONGITUDE"])
+    lat_lon_info = {iata_codes[i] : (lons[i], lats[i]) for i in range(len(iata_codes))}
+    #print(lat_lon_info)
+    #print(type(lat_lon_info))
+    #print(type(lat_lon_info['SAN']))
+    return lat_lon_info
+    
+def get_grid_lat_lon():
     usa_shape_file: str = "./usa-shape/usa-states-census-2014.shp"
     usa_shp_df = geopandas.read_file(usa_shape_file)
     print (f"The CRS:\n{usa_shp_df.crs}")
@@ -121,7 +76,8 @@ def get_lat_long ():
     print (f"BBOX:\n{usa_bbox}")
     lon_axis = np.linspace(usa_bbox[0], usa_bbox[2], num=ngrid_lon)
     lat_axis = np.linspace(usa_bbox[1], usa_bbox[3], num=ngrid_lat)
-
+    
+    # rounds origin coordinates to closest node on the grid. lon_axis is a list
     (origin_i, origin_j) = (np.argmin(np.abs(lon_axis - lon_origin)) , np.argmin(np.abs(lat_axis - lat_origin)))
     lon_axis[origin_i] = lon_origin
     lat_axis[origin_j] = lat_origin
@@ -131,8 +87,8 @@ def get_lat_long ():
     lat_axis[destination_j] = lat_destination
     
     print (f"\nOrigin:{origin} Destination:{destination}")
+    return usa_shp_df, usa_bbox, lon_axis, lat_axis, origin_i, origin_j, destination_i, destination_j
 
-    return lat_long_info, usa_shp_df, usa_bbox, lon_axis, lat_axis, origin_i, origin_j, destination_i, destination_j
 
 def get_node_number (lon_i, lat_j):
     return lon_i + lat_j * len(lon_axis)
@@ -175,18 +131,18 @@ def process_args ():
     parser.add_argument(
         "--origin",
         nargs='+',
-        help="lon lat Of Origin",
+        help="IATA code of origin",
         action="store",
         required=True,
-        type=float
+        #type=string
     )   
     parser.add_argument(
         "--destination",
         nargs='+',
-        help="lon lat Of Destination",
+        help="IATA code of destination",
         action="store",
         required=True,
-        type=float
+        #type=string
     )   
     parser.add_argument(
         "--wind_magnitude",
@@ -205,8 +161,8 @@ def process_args ():
         euclidean = False
     ngrid_lat = args.ngrid_lat
     ngrid_lon = args.ngrid_lon
-    origin = tuple(args.origin)
-    destination = tuple(args.destination)
+    origin = lat_lon_info[args.origin[0]]
+    destination = lat_lon_info[args.destination[0]]
     wind_magnitude = args.wind_magnitude
     print (euclidean, ngrid_lat, ngrid_lon, origin, destination, wind_magnitude)
     return euclidean, ngrid_lat, ngrid_lon, origin, destination, wind_magnitude
@@ -250,6 +206,7 @@ def interpolate_for_wind (lon, lat):
 #Origin:(-117.1611, 32.7157) Destination:(-74.006, 40.6712)
 
 def set_wind(lon, lat):
+    '''
     angle = 0
     wind_mag = 0.0
 
@@ -267,12 +224,22 @@ def set_wind(lon, lat):
         angle = math.pi
     wind_lon = wind_mag*math.cos(angle)
     wind_lat = wind_mag*math.sin(angle)
+    '''
+    
+    angle = 0
+    wind_mag = 0
+    if(lat > 34 and lat < 39):
+        wind_mag = wind_magnitude
+    wind_lon = wind_mag*math.cos(angle)
+    wind_lat = wind_mag*math.sin(angle)
 
     return wind_lon, wind_lat
 
-def get_wind_penalty(src_node, target_node):
-    wind_penalty = 0.0
-    points_for_line_integral = 10
+def get_travel_time(src_node, target_node):
+    # is distance is 3000 miles, we want 30 points
+    # overall_dist = get_geodesic_distance(src_node.lon, src_node.lat, target_node.lon, target_node.lat)
+    travel_time = 0.0
+    points_for_line_integral = 30
     if euclidean:
         lons_path = np.linspace(src_node.lon, target_node.lon, num=points_for_line_integral)
         if abs(target_node.lon - src_node.lon) > 1.0e-6:
@@ -297,71 +264,79 @@ def get_wind_penalty(src_node, target_node):
         else:
             dist_mag = get_geodesic_distance (lon_1, lat_1, lon_2, lat_2)
 
-        displacement_vector = np.array([lon_2 - lon_1, lat_2 - lat_1])
+        # and delta based on wind vector because displacement vector should counteract wind
+        no_wind_displacement_vector = np.array([lon_2 - lon_1, lat_2 - lat_1])
+        no_wind_displacement_mag = np.linalg.norm(no_wind_displacement_vector)
+        displacement_vector = no_wind_displacement_vector - (no_wind_displacement_mag / 500) * wind_vector
         displacement_mag = np.linalg.norm(displacement_vector)
 
         # No wind: wind_penalty = dist_mag
         # Wind: wind_penalty = dist_mag * (1.0 - dot_product)
-
+        
+        # try to consider wind when it is coming from the side.
+        # try doing dijkstra with only immediate neighbors
         if wind_mag > 0:
-            dot_product = np.dot(displacement_vector, wind_vector) / (wind_mag * displacement_mag)
-            wind_penalty = wind_penalty - dot_product * dist_mag * 0.5
+            # dot_product = np.dot(displacement_vector, wind_vector) / (wind_mag * displacement_mag). significant difference
+            # wind_penalty = wind_penalty - dot_product * dist_mag * wind_mag * 0.05
+            speed_dot_product = np.dot(displacement_vector, wind_vector) / displacement_mag # wind speed in the direction of plane's movement. also try dividing by displacement_vector_mag
+            added_time = dist_mag / (500 + speed_dot_product) # distance divided by speed gives time that wind adds to (or subtracts from) total travel time
+            '''
+            if(added_time < 0):
+                print(speed_dot_product)
+                print("source: (" + str(src_node.lon) + ", " + str(src_node.lat) + ") target: (" + str(target_node.lon) + ", " + str(target_node.lat) + ")")
+                exit()
+            '''
+            travel_time = travel_time + added_time
+        else:
+            travel_time = travel_time + dist_mag / 500
 
-    return wind_penalty
+    return travel_time
 
-def get_distance_penalty (src_node, target_node):
+def get_distance(src_node, target_node):
     if euclidean:
-        distance_penalty = get_euclidean_distance (src_node.lon, src_node.lat, target_node.lon, target_node.lat)
+        distance = get_euclidean_distance(src_node.lon, src_node.lat, target_node.lon, target_node.lat)
     else:
-        distance_penalty = get_geodesic_distance (src_node.lon, src_node.lat, target_node.lon, target_node.lat)
-    return distance_penalty
+        distance = get_geodesic_distance(src_node.lon, src_node.lat, target_node.lon, target_node.lat)
+    return distance
 
 def build_csr_matrix():
-    node_x, node_y, data = [], [], []
-    wind_time_taken, dist_time_taken = 0, 0
-    min_penalty = 1.0e10
-    for node_number, node in nodes.items():
-        for neighbor_node_number in node.neighbor_node_numbers:
-            node_x.append(node_number)
-            node_y.append(neighbor_node_number)
-            if node_number == neighbor_node_number:
-                data.append(0.0)
-            else:
-                start_time = time.perf_counter_ns()
-                distance_penalty = get_distance_penalty (node, nodes[neighbor_node_number])
-                dist_time_taken = dist_time_taken + time.perf_counter_ns() - start_time
-                start_time = time.perf_counter_ns()
-                wind_penalty = get_wind_penalty (node, nodes[neighbor_node_number])
-                wind_time_taken = wind_time_taken + time.perf_counter_ns() - start_time
-                #print (f"node:{node_number} neighor:{neighbor_node_number} dist_p:{distance_penalty} wind_p:{wind_penalty}")
-                #data.append(distance_penalty)
-                data.append(wind_penalty + distance_penalty)
-                #data.append(wind_penalty)
-                #min_penalty = min (min_penalty, wind_penalty)
+ 
+    penalties = np.zeros((len(nodes), len(nodes)))
+    
+    for i in range(len(nodes)):
+        # neighbors
+        for j in range(len(nodes)):
+            
+            if(i != j):
+                penalties[i,j] = get_travel_time(nodes[i], nodes[j])
 
-    #min_penalty = abs(min_penalty) + 1.0
-    #print (f"min penalty:{min_penalty}")
-    #data = [k + min_penalty for k in data]
-
-    weights = csr_matrix((data, (node_x, node_y)), shape=(ngrid_lat*ngrid_lon, ngrid_lat*ngrid_lon))
+    weights = csr_matrix(penalties)
+    np.save("penalties_array.npy", penalties)
     print (f"\nCSR Weight Matrix:{weights.shape}")
-    print (f"\nPenalty Computation Times. Dist:{dist_time_taken*1.0e-9} Wind:{wind_time_taken*1.0e-9}")
+    # print (f"\nPenalty Computation Times. Dist:{dist_time_taken*1.0e-9} Wind:{wind_time_taken*1.0e-9}")
     return weights
 
 def process_results():
     if euclidean:
         min_dist_cost = get_euclidean_distance (lon_origin, lat_origin, lon_destination, lat_destination)
     else:
-        min_dist_cost = get_geodesic_distance (lon_origin, lat_origin, lon_destination, lat_destination)
+        #min_dist_cost = get_geodesic_distance (lon_origin, lat_origin, lon_destination, lat_destination)
+        geodesic_cost_o_d = get_travel_time(nodes[origin_node_number], nodes[dest_node_number])
+        geodesic_cost_d_o = get_travel_time(nodes[dest_node_number], nodes[origin_node_number])
 
     o_d_cost = dist_matrix[0, dest_node_number]
     d_o_cost = dist_matrix[1, origin_node_number]
-    print (f"Minimum Distance Cost: origin => dest: {min_dist_cost}")
+    print (f"Geodesic Cost: origin => dest: {geodesic_cost_o_d}")
+    print (f"Geodesic Cost: origin => dest: {geodesic_cost_d_o}")
     print (f"Resolution: {ngrid_lat}x{ngrid_lon} Min Distance+Wind Cost: origin => dest: {o_d_cost}")
     print (f"Resolution: {ngrid_lat}x{ngrid_lon} Min Distance+Wind Cost: dest=> origin: {d_o_cost}")
 
     geodesic_node_string = str(origin_node_number) + '=>' + str(dest_node_number)
-    str1 = "Geodesic: " + geodesic_node_string + " : " + str(round(min_dist_cost, 3))
+    str1 = "Geodesic o-d: " + geodesic_node_string + " : " + str(round(geodesic_cost_o_d, 3))
+    ax.text(-124, 30, str1, color='k',fontsize='small')
+    
+    geodesic_node_string = str(dest_node_number) + '=>' + str(origin_node_number)
+    str1 = "Geodesic d-o: " + geodesic_node_string + " : " + str(round(geodesic_cost_d_o, 3))
     ax.text(-124, 29, str1, color='k',fontsize='small')
 
     o_d_path = [dest_node_number]
@@ -383,10 +358,10 @@ def process_results():
 
     d_o_path = [origin_node_number]
     prev_one = predecessors[1,origin_node_number]
+    str3 = ''
     while prev_one != -9999:
         d_o_path.append(prev_one)
         prev_one = predecessors[1,prev_one]
-        str3 = ''
     if (o_d_path != d_o_path):
         d_o_path.reverse()
         path_node_string = '=>'.join([str(node_number) for node_number in d_o_path])
@@ -436,7 +411,7 @@ def plot_flight_paths(x_path_o_d, y_path_o_d, x_path_d_o, y_path_d_o, str1, str2
     plt.plot(lons_path_d_o, lats_path_d_o, color='b')
     # animate(lons_path_o_d, lats_path_o_d, lons_path_d_o, lats_path_d_o, str1, str2, str3)
 
-def initialize_plot ():
+def initialize_plot():
     ax = plt.axes()
     usa_shp_df.boundary.plot(ax=ax, color='red', linewidth=1)
 
@@ -454,15 +429,13 @@ def initialize_plot ():
         plt.plot(geodesic_lons, geodesic_lats, color='k', linestyle='--')
     return ax
 
-def set_origin_destination():
-    return origin[0], origin[1], destination[0], destination[1]
-
 if __name__ == "__main__":
     start_time_0 = time.perf_counter_ns()
     geodesic_projection = pyproj.Geod(ellps='WGS84')
+    lat_lon_info = get_csv_lat_lon()
     euclidean, ngrid_lat, ngrid_lon, origin, destination, wind_magnitude = process_args()
-    lon_origin, lat_origin, lon_destination, lat_destination = set_origin_destination()
-    lat_long_info, usa_shp_df, usa_bbox, lon_axis, lat_axis, origin_i, origin_j, destination_i, destination_j = get_lat_long()
+    lon_origin, lat_origin, lon_destination, lat_destination = origin[0], origin[1], destination[0], destination[1]
+    usa_shp_df, usa_bbox, lon_axis, lat_axis, origin_i, origin_j, destination_i, destination_j = get_grid_lat_lon()
     origin_node_number = get_node_number(origin_i, origin_j)
     dest_node_number = get_node_number(destination_i, destination_j)
     print (f"\nOrigin in Grid: {(origin_i, origin_j)} => {origin_node_number}")
@@ -479,6 +452,8 @@ if __name__ == "__main__":
     weights = build_csr_matrix ()
     time_taken = round((time.perf_counter_ns() - start_time_0) * 1.0e-9, 4)
     print( f"\nTime taken to build weights:{time_taken} seconds\n")
+    
+    # just these few lines that the app will run in real time. store csr matrix in memory, update every 6 hours
     dist_matrix, predecessors = shortest_path(csgraph=weights, directed=True, indices=[origin_node_number, dest_node_number], return_predecessors=True)
 
     #print (dist_matrix)
