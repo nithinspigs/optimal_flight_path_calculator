@@ -1,3 +1,5 @@
+# cd into lat-lon-data directory before running
+
 import pandas as pd
 
 df = pd.read_csv("airport-codes.csv")

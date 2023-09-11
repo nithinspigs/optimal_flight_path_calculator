@@ -1,31 +1,46 @@
-[![CircleCI](https://dl.circleci.com/status-badge/img/gh/ashokc/context-aware-word-vectors/tree/main.svg?style=svg)](https://dl.circleci.com/status-badge/redirect/gh/ashokc/context-aware-word-vectors/tree/main)
+# Optimal Flight Path Calculator
 
-# Context Aware Word Vectors
+This is an application that plots the most optimal flight path between an origin and destination city in the continental United States such that travel time due to distance as well as wind is minimized.
 
-This is a redo of the code in the repo [Bow to Bert](https://github.com/ashokc/Bow-to-Bert) and the article [Bow to Bert](http://xplordat.com/2019/09/23/bow-to-bert/) to work with current versions of TensorFlow/Pytorch engaged by transformers from Huggingface.
+Here is an example flight path where the grid is broken into 40 points along both the longitudinal and latitudinal axes (1600 "nodes" in total).
 
-The article details the evolution of word vectors from long, sparse, and one-hot to short, dense, and context sensitive over the years.
+![SAN-JFK](./flight/ngrid_40-40_SAN-JFK_GOOD.jpeg)
 
-Here is updated result for BERT that shows that a word assumes a different numerical vector based on the context, much like the actual contextual meaning of the word.
+## Summary
 
-![Context sensitive embeddings with BERT](./images/bert-similarity.jpg "Context sensitive embeddings with BERT")
+**Optimal Flight Path Calculator** is split into two parts: _make\_penalties\_nodes.py_ and _make\_path.py_. _make\_penalties\_nodes.py_ creates the _nodes_ and _penalties\_array_ arrays needed for the path to be created, and _make\_path.py_ then uses those arrays to plot the minimum path.
 
-*BERT embeddings are contextual. Each row shows three sentences. The sentence in the middle expresses the same context as the sentence on its right, but different from the one on its left. All three sentences in the row have a word in common. The numbers show the computed cosine-similarity,euclidean-distane, and manhattan-ditance between the indicated word pairs. BERT embedding for the word in the middle is more similar (larger dot-product & smaller distance) to the same word on the right than the one on the left, for all three of these measures*
+Each node contains information about its relative (i, j) position in the grid, the longitude and latitude at that point, the wind magnitude in the longitudinal direction, and the wind mangitude in the latitudinal direction.
 
-##  Summary
+_penalties\_array_ is a two dimensional array that stores the time it takes to travel from every node to every other node. Thus, if the grid is 40x40 with 1600 nodes, _penalties\_array_ has 2560000 entries. The travel time assumes a plane traveling at 500mph, and takes into account any headwind or tailwind that would alter the travel time.
 
-Word vectors have evolved over the years to know the difference between "record the play" vs "play the record". They have evolved from a one-hot world where every word was orthogonal to every other word, to a place where word vectors morph to suit the context. Slapping a BoW on word vectors is the usual way to build a document vector for tasks such as classification. But BERT does not need a BoW as the vector shooting out of the top [CLS] token is already fine tuned for the specific classification objective...
+Computation of the _penalties\_array_ is time intensive, so it can be calculated beforehand so the files can be stored. Then, _make\_path.py_ can be run by itself to display the minimum path between any pair of cities in us-airport-codes.csv.
 
-##	Requirements
+The algorithm used to calculate the minimum path is a modified version of Dijkstra's algorithm where the neighbor nodes are not limited to those immediately adjacent.
+
+The application uses wind data from the Aviation Weather Center to determine the wind speed and direction at every node in the grid. Wind data at 30000 feet is only collected at certain airports across the country, so in order to define it for every node,a weighted average is taken of all the airports within a 200 mile radius.
+
+## Requirements
 
     python >= 3.10
 
 ##	Dependencies
-    transformers
-    pytorch
-	tensorflow
+    argparse
+    sys
+    os
+	scipy
+    matplotlib
+    pyproj
+    itertools
+    numpy
+    geopandas
+    pandas
+    time
+    math
+    typing
+    multiprocessing
 
-## How to run the code here?
+## How to run the code
 
     1. Clone this repo
 
@@ -35,13 +50,8 @@ Word vectors have evolved over the years to know the difference between "record 
         pip install -r requirements/test-requirements.txt
 
     3. Run:
-        python src/context_aware_word_vectors/context_aware_word_vectors.py
-
-    4. Test:
-
-        pytest -m all --capture=tee-sys
-
-        The tests should succeed ( larger dot_products & smaller distances between the word vector in 2nd/3rd sentences compared to 1st/2nd or 3rd/1st)
+        python src/optimal_flight_path_calculator/make_penalties_nodes.py
+        python src/optimal_flight_path_calculator/make_path.py
 
 You wil see  output like:
 

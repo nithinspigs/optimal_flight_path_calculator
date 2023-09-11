@@ -16,39 +16,13 @@ import math
 from typing import Any
 from exceptions import ErrorHandler
 error_handler = ErrorHandler()
-
-class Node:
-    def __init__(self, i, j, lon, lat):
-        self.i = i
-        self.j = j
-        self.lon = lon
-        self.lat = lat
-        self.neighbor_node_numbers: list[int] = []
-
-    def set_neighbors (self, neighbors):
-        self.neighbor_node_numbers = neighbors
-
-    def set_wind(self, wind_lon, wind_lat):
-        self.wind_lon = wind_lon
-        self.wind_lat = wind_lat
-
-def get_csv_lat_lon():
-    lat_lon_file: str = "./lat-lon-data/us-airport-codes.csv"
-    lat_lon_df = pandas.read_csv(lat_lon_file)
-    iata_codes = list(lat_lon_df["iata_code"])
-    coordinates = list(lat_lon_df["coordinates"])
-    
-    airports_lat_lon_info = {}
-    for i in range(len(iata_codes)):
-        airports_lat_lon_info[iata_codes[i]] = eval(coordinates[i])
-    
-    return airports_lat_lon_info
+import utilities
 
 def plot_wind(ax):
     step = 1
     for j in range(0,len(lat_axis), step):
         for i in range(0,len(lon_axis), step):
-            node = nodes[get_node_number(i,j)]
+            node = nodes[utilities.get_node_number(i,j)]
             vx = node.wind_lon
             vy = node.wind_lat
             if (abs(vx) > 0.1):
@@ -59,13 +33,7 @@ def plot_wind(ax):
                 ax.arrow(node.lon, node.lat, vx, vy, head_length = 0.15, head_width = 0.15)
                 #ax.arrow(node.lon, node.lat, node.wind_lon, node.wind_lat, head_length = 0.15, head_width = 0.15)
     
-def get_grid_lat_lon():
-    usa_shape_file: str = "./usa-shape/usa-states-census-2014.shp"
-    usa_shp_df = geopandas.read_file(usa_shape_file)
-    usa_bbox = usa_shp_df.total_bounds # [-124.725839   24.498131  -66.949895   49.384358]
-    lon_axis = np.linspace(usa_bbox[0], usa_bbox[2], num=ngrid_lon)
-    lat_axis = np.linspace(usa_bbox[1], usa_bbox[3], num=ngrid_lat)
-    
+def get_orig_dest():
     # rounds origin coordinates to closest node on the grid. lon_axis is a list
     (origin_i, origin_j) = (np.argmin(np.abs(lon_axis - lon_origin)) , np.argmin(np.abs(lat_axis - lat_origin)))
     lon_axis[origin_i] = lon_origin
@@ -75,10 +43,7 @@ def get_grid_lat_lon():
     lon_axis[destination_i] = lon_destination
     lat_axis[destination_j] = lat_destination
     
-    return usa_shp_df, usa_bbox, lon_axis, lat_axis, origin_i, origin_j, destination_i, destination_j
-
-def get_node_number(lon_i, lat_j):
-    return lon_i + lat_j * len(lon_axis)
+    return origin_i, origin_j, destination_i, destination_j
 
 #Origin:(-117.1611, 32.7157) Destination:(-74.006, 40.6712)
 
@@ -106,19 +71,16 @@ def process_args():
     args = parser.parse_args()
     origin = airports_lat_lon_info[args.origin[0]]
     destination = airports_lat_lon_info[args.destination[0]]
+    origin_name = args.origin[0]
+    dest_name = args.destination[0]
     print (args.origin[0], args.destination[0])
-    return origin, destination
+    return origin, destination, origin_name, dest_name
 
 def build_csr_matrix():
     penalties = np.load("penalties_array.npy")
     print(penalties[origin_node_number, dest_node_number])
     weights = csr_matrix(penalties)
     return weights
-
-
-def get_geodesic_distance( lon1, lat1, lon2, lat2 ):
-    geodesic_distance = geodesic_projection.line_length([lon1, lon2], [lat1, lat2]) # meters
-    return geodesic_distance * 1.0e-3 / 1.60934 # miles
     
 def process_results():
 
@@ -157,28 +119,22 @@ def process_results():
     y_path_d_o = [nodes[i].lat for i in d_o_path]
     plt.scatter(x_path_d_o, y_path_d_o, color='b', marker='o')
     
-    str3 = "O=>D direct (if there was no wind): " + str(origin_node_number) + "=>" + str(dest_node_number) + " : " + str(round(get_geodesic_distance(lon_origin, lat_origin, lon_destination, lat_destination) / 500, 3))
+    str3 = "O=>D direct (if there was no wind): " + str(origin_node_number) + "=>" + str(dest_node_number) + " : " + str(round(utilities.get_geodesic_distance(lon_origin, lat_origin, lon_destination, lat_destination) / 500, 3))
     ax.text(-124, 28, str3, color='gray',fontsize='small')
     
     plot_flight_paths(x_path_o_d, y_path_o_d, x_path_d_o, y_path_d_o)
-    plt.savefig("flight/wind-" + str(100.0) + "-" + str(ngrid_lon) + "-" + str(ngrid_lat) + ".jpeg")
-
-def get_geodesic_path_coords_in_rectilinear_lon_lat(lon1, lon2, lat1, lat2, npts=10):
-    geodesic_path_coords_in_rectilinear_lon_lat = geodesic_projection.npts(lon1=lon1, lon2=lon2, lat1=lat1, lat2=lat2, npts=npts)
-    geodesic_lons = [v[0] for v in geodesic_path_coords_in_rectilinear_lon_lat]
-    geodesic_lats = [v[1] for v in geodesic_path_coords_in_rectilinear_lon_lat]
-    return geodesic_lons, geodesic_lats
+    plt.savefig("flight/ngrid_" + str(ngrid_lon) + "-" + str(ngrid_lat) + "_" + str(origin_name) + "-" + str(dest_name) + ".jpeg")
 
 def plot_flight_paths(x_path_o_d, y_path_o_d, x_path_d_o, y_path_d_o):
     nframes = 10
     lons_path_o_d, lats_path_o_d = [], []
     lons_path_d_o, lats_path_d_o = [], []
     for i in range(len(x_path_o_d)-1):
-        geodesic_lons, geodesic_lats = get_geodesic_path_coords_in_rectilinear_lon_lat(x_path_o_d[i], x_path_o_d[i+1], y_path_o_d[i], y_path_o_d[i+1], npts=nframes)
+        geodesic_lons, geodesic_lats = utilities.get_geodesic_path_coords_in_rectilinear_lon_lat(x_path_o_d[i], x_path_o_d[i+1], y_path_o_d[i], y_path_o_d[i+1], npts=nframes)
         lons_path_o_d = lons_path_o_d + [x_path_o_d[i]] + geodesic_lons + [x_path_o_d[i+1]]
         lats_path_o_d = lats_path_o_d + [y_path_o_d[i]] + geodesic_lats + [y_path_o_d[i+1]]
     for i in range(len(x_path_d_o)-1):
-        geodesic_lons, geodesic_lats = get_geodesic_path_coords_in_rectilinear_lon_lat(x_path_d_o[i], x_path_d_o[i+1], y_path_d_o[i], y_path_d_o[i+1], npts=nframes)
+        geodesic_lons, geodesic_lats = utilities.get_geodesic_path_coords_in_rectilinear_lon_lat(x_path_d_o[i], x_path_d_o[i+1], y_path_d_o[i], y_path_d_o[i+1], npts=nframes)
         lons_path_d_o = lons_path_d_o + [x_path_d_o[i]] + geodesic_lons + [x_path_d_o[i+1]]
         lats_path_d_o = lats_path_d_o + [y_path_d_o[i]] + geodesic_lats + [y_path_d_o[i+1]]
 
@@ -194,7 +150,7 @@ def initialize_plot():
     ax.set_xlim(usa_bbox[0], usa_bbox[2])
     ax.set_ylim(usa_bbox[1], usa_bbox[3])
     
-    geodesic_lons, geodesic_lats = get_geodesic_path_coords_in_rectilinear_lon_lat(lon_origin, lon_destination, lat_origin, lat_destination, npts=100)
+    geodesic_lons, geodesic_lats = utilities.get_geodesic_path_coords_in_rectilinear_lon_lat(lon_origin, lon_destination, lat_origin, lat_destination, npts=100)
     geodesic_lons = [lon_origin] + geodesic_lons + [lon_destination]
     geodesic_lats = [lat_origin] + geodesic_lats + [lat_destination]
     plt.plot(geodesic_lons, geodesic_lats, color='k', linestyle='--')
@@ -202,15 +158,15 @@ def initialize_plot():
 
 if __name__ == "__main__":
     start_time_0 = time.perf_counter_ns()
-    geodesic_projection = pyproj.Geod(ellps='WGS84')
-    airports_lat_lon_info = get_csv_lat_lon()
-    origin, destination = process_args()
+    airports_lat_lon_info = utilities.get_csv_lat_lon()
+    origin, destination, origin_name, dest_name = process_args()
     # make sure to match with make_penalties.py
-    ngrid_lat, ngrid_lon = 20, 20
+    ngrid_lat, ngrid_lon = utilities.ngrid_lat, utilities.ngrid_lon
     lon_origin, lat_origin, lon_destination, lat_destination = origin[1], origin[0], destination[1], destination[0]
-    usa_shp_df, usa_bbox, lon_axis, lat_axis, origin_i, origin_j, destination_i, destination_j = get_grid_lat_lon()
-    origin_node_number = get_node_number(origin_i, origin_j)
-    dest_node_number = get_node_number(destination_i, destination_j)
+    usa_shp_df, usa_bbox, lon_axis, lat_axis = utilities.usa_shp_df, utilities.usa_bbox, utilities.lon_axis, utilities.lat_axis
+    origin_i, origin_j, destination_i, destination_j = get_orig_dest()
+    origin_node_number = utilities.get_node_number(origin_i, origin_j)
+    dest_node_number = utilities.get_node_number(destination_i, destination_j)
     print(str(lon_origin) + ", " + str(lat_origin))
     print(str(lon_destination) + ", " + str(lat_destination))
 
@@ -218,7 +174,7 @@ if __name__ == "__main__":
     fig.set_layout_engine('tight')
     ax = initialize_plot()
 
-    nodes = np.load("nodes.npy", allow_pickle=True).item()
+    nodes = nodes = np.load("nodes.npy", allow_pickle=True).item()
     print(nodes[origin_node_number].lon)
     # print(nodes[99].wind_lon)
     # print(nodes[99].wind_lat)
