@@ -52,6 +52,8 @@ def set_wind(lon, lat):
     
     # dictionary in format {iata_code : (wind_lon, wind_lat)}
     airport_wind_info = get_tsv_airport_wind()
+    print(airport_wind_info)
+    sys.exit()
     # list of tuples in format [distance from node, wind_lon, wind_lat] for each airport within 500 miles of node
     nearby_airports = []
     total_distance = 0
