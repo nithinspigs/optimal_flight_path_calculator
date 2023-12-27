@@ -14,22 +14,33 @@ import pandas
 import time
 import math
 from typing import Any
-from exceptions import ErrorHandler
-error_handler = ErrorHandler()
 import utilities
 
 def plot_wind(ax):
+    
     step = 1
+    
+    max_vx_or_vx = 0
     for j in range(0,len(lat_axis), step):
         for i in range(0,len(lon_axis), step):
             node = nodes[utilities.get_node_number(i,j)]
-            vx = node.wind_lon
-            vy = node.wind_lat
+            if node.wind_lon > max_vx_or_vx:
+                max_vx_or_vx = node.wind_lon
+            if node.wind_lat > max_vx_or_vx:
+                max_vx_or_vx = node.wind_lat
+                
+    for j in range(0,len(lat_axis), step):
+        for i in range(0,len(lon_axis), step):
+            node = nodes[utilities.get_node_number(i,j)]
+            vx = node.wind_lon / max_vx_or_vx
+            vy = node.wind_lat / max_vx_or_vx
+            '''
             if (abs(vx) > 0.1):
                 vx = vx / abs(vx)
             if (abs(vy) > 0.1):
                 vy = vy / abs(vy)
-            if (abs(vx) > 0.5) or (abs(vy) > 0.5):
+            '''
+            if (abs(vx) > 0) or (abs(vy) > 0):
                 ax.arrow(node.lon, node.lat, vx, vy, head_length = 0.15, head_width = 0.15)
                 #ax.arrow(node.lon, node.lat, node.wind_lon, node.wind_lat, head_length = 0.15, head_width = 0.15)
     
@@ -44,8 +55,6 @@ def get_orig_dest():
     lat_axis[destination_j] = lat_destination
     
     return origin_i, origin_j, destination_i, destination_j
-
-#Origin:(-117.1611, 32.7157) Destination:(-74.006, 40.6712)
 
 def process_args():
     parser = argparse.ArgumentParser(
@@ -73,21 +82,22 @@ def process_args():
     destination = airports_lat_lon_info[args.destination[0]]
     origin_name = args.origin[0]
     dest_name = args.destination[0]
-    print (args.origin[0], args.destination[0])
+    # print (args.origin[0], args.destination[0])
     return origin, destination, origin_name, dest_name
 
 def build_csr_matrix():
     penalties = np.load("penalties_array.npy")
-    print(penalties[origin_node_number, dest_node_number])
+    # print(penalties[origin_node_number, dest_node_number])
     weights = csr_matrix(penalties)
     return weights
     
 def process_results():
 
     # this is cost of going DIRECTLY from origin to destination, not accounting for the stops made along the way
-    o_d_cost = dist_matrix[0, dest_node_number]
-    print(o_d_cost)
-    d_o_cost = dist_matrix[1, origin_node_number]
+    o_d_time = dist_matrix[0, dest_node_number]
+    # print("direct o_d_cost with wind: " + str(o_d_cost))
+    d_o_time = dist_matrix[1, origin_node_number]
+    # print("direct d_o_cost with wind: " + str(d_o_cost))
 
     o_d_path = [dest_node_number]
     prev_one = predecessors[0,dest_node_number]
@@ -95,10 +105,9 @@ def process_results():
         o_d_path.append(prev_one)
         prev_one = predecessors[0,prev_one]
     o_d_path.reverse()
-    
-    path_node_string = '=>'.join([str(node_number) for node_number in o_d_path])
-    str1 = "O=>D: " + path_node_string + " : " + str(round(o_d_cost, 3))
-    ax.text(-124, 30, str1, color='g',fontsize='small')
+
+    str1 = origin_name + " => " + dest_name + ": " + str(round(o_d_time, 3)) + " hours"
+    ax.text(-124, 29, str1, color='g',fontsize='small')
 
     x_path_o_d = [nodes[i].lon for i in o_d_path]
     y_path_o_d = [nodes[i].lat for i in o_d_path]
@@ -113,17 +122,18 @@ def process_results():
 
     d_o_path.reverse()
     path_node_string = '=>'.join([str(node_number) for node_number in d_o_path])
-    str2 = "D=>O: " + path_node_string + " : " + str(round(d_o_cost, 3))
-    ax.text(-124, 29, str2, color='b',fontsize='small')
+    str2 = dest_name + " => " + origin_name + ": " + str(round(d_o_time, 3)) + " hours"
+    ax.text(-124, 28, str2, color='b',fontsize='small')
+    
     x_path_d_o = [nodes[i].lon for i in d_o_path]
     y_path_d_o = [nodes[i].lat for i in d_o_path]
     plt.scatter(x_path_d_o, y_path_d_o, color='b', marker='o')
     
-    str3 = "O=>D direct (if there was no wind): " + str(origin_node_number) + "=>" + str(dest_node_number) + " : " + str(round(utilities.get_geodesic_distance(lon_origin, lat_origin, lon_destination, lat_destination) / 500, 3))
-    ax.text(-124, 28, str3, color='gray',fontsize='small')
+    str3 = origin_name + " => " + dest_name + ": " + str(round(utilities.get_geodesic_distance(lon_origin, lat_origin, lon_destination, lat_destination) / 500, 3)) + " hours"
+    ax.text(-124, 27, str3, color='gray',fontsize='small')
     
     plot_flight_paths(x_path_o_d, y_path_o_d, x_path_d_o, y_path_d_o)
-    plt.savefig("flight/ngrid_" + str(ngrid_lon) + "-" + str(ngrid_lat) + "_" + str(origin_name) + "-" + str(dest_name) + ".jpeg")
+    plt.savefig("flight/" + str(origin_name) + "-" + str(dest_name) + ".jpeg")
 
 def plot_flight_paths(x_path_o_d, y_path_o_d, x_path_d_o, y_path_d_o):
     nframes = 10
@@ -157,7 +167,7 @@ def initialize_plot():
     return ax
 
 if __name__ == "__main__":
-    start_time_0 = time.perf_counter_ns()
+    # start_time_0 = time.perf_counter_ns()
     airports_lat_lon_info = utilities.get_csv_lat_lon()
     origin, destination, origin_name, dest_name = process_args()
     # make sure to match with make_penalties.py
@@ -167,30 +177,26 @@ if __name__ == "__main__":
     origin_i, origin_j, destination_i, destination_j = get_orig_dest()
     origin_node_number = utilities.get_node_number(origin_i, origin_j)
     dest_node_number = utilities.get_node_number(destination_i, destination_j)
-    print(str(lon_origin) + ", " + str(lat_origin))
-    print(str(lon_destination) + ", " + str(lat_destination))
+    # print(str(lon_origin) + ", " + str(lat_origin))
+    # print(str(lon_destination) + ", " + str(lat_destination))
 
     fig = plt.figure(figsize=(12,8),dpi=720)
     fig.set_layout_engine('tight')
     ax = initialize_plot()
 
     nodes = nodes = np.load("nodes.npy", allow_pickle=True).item()
-    print(nodes[origin_node_number].lon)
-    # print(nodes[99].wind_lon)
-    # print(nodes[99].wind_lat)
     plot_wind(ax)
 
     start_time = time.perf_counter_ns()
     weights = build_csr_matrix()
     
-    # just these few lines that the app will run in real time. store csr matrix in memory, update every 6 hours
     dist_matrix, predecessors = shortest_path(csgraph=weights, directed=True, indices=[origin_node_number, dest_node_number], return_predecessors=True)
 
     #print (dist_matrix)
 
     process_results()
-    time_taken = round((time.perf_counter_ns() - start_time_0) * 1.0e-9, 4)
-    print( f"\nTotal Time taken:{time_taken} seconds\n")
+    # time_taken = round((time.perf_counter_ns() - start_time_0) * 1.0e-9, 4)
+    # print( f"\nTotal Time taken:{time_taken} seconds\n")
 
 
 

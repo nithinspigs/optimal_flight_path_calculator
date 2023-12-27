@@ -28,9 +28,9 @@ class Node:
 def get_grid_lat_lon():
     usa_shape_file: str = "./usa-shape/usa-states-census-2014.shp"
     usa_shp_df = geopandas.read_file(usa_shape_file)
-    print(f"The CRS:\n{usa_shp_df.crs}")
+    # print(f"The CRS:\n{usa_shp_df.crs}")
     usa_bbox = usa_shp_df.total_bounds # [-124.725839   24.498131  -66.949895   49.384358]
-    print(f"BBOX:\n{usa_bbox}")
+    # print(f"BBOX:\n{usa_bbox}")
     lon_axis = np.linspace(usa_bbox[0], usa_bbox[2], num=ngrid_lon)
     lat_axis = np.linspace(usa_bbox[1], usa_bbox[3], num=ngrid_lat)
     
@@ -106,11 +106,8 @@ def get_travel_time(src_node, target_node, nodes):
         exit()
     
     return travel_time
-    
-def find_wind(lon, lat, nodes):
-    return interpolate_for_wind(lon, lat, nodes)
 
-def interpolate_for_wind(lon, lat, nodes):
+def find_wind(lon, lat, nodes):
     i, j = (np.argmin(np.abs(lon_axis - lon)) , np.argmin(np.abs(lat_axis - lat)))
 
     i = min(i, len(lon_axis) - 2)

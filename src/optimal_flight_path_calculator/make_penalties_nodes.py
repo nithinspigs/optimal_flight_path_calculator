@@ -10,27 +10,38 @@ import pandas
 import time
 import math
 from typing import Any
-from exceptions import ErrorHandler
-error_handler = ErrorHandler()
 import utilities
 import multiprocessing
 
 def get_tsv_airport_wind():
-    airport_wind = pandas.read_csv("./wind-data/wind.tsv", sep=' ')
+    
+    airport_wind = pandas.read_csv("./wind-data/wind.tsv", sep=' ', dtype=str)
     iata_codes = list(airport_wind["FT"])
+    
     wind_directions = list(airport_wind["30000"])
     for i in range(len(wind_directions)):
-        wind_directions[i] = int(str(wind_directions[i])[:2]) * 10
+        degrees = 0
+        if(int(str(wind_directions[i])[:1]) > 4):
+            degrees = (int(str(wind_directions[i])[:2]) - 50) * 10
+        else:
+            degrees = int(str(wind_directions[i])[:2]) * 10
+        wind_directions[i] = round(math.radians(degrees), 3)
+    
     wind_speeds = list(airport_wind["30000"])
     for i in range(len(wind_speeds)):
-        wind_speeds[i] = int(str(wind_directions[i])[:2])
+        speed = 0
+        if(int(str(wind_directions[i])[:1]) > 4):
+            speed_mph = int(str(wind_speeds[i])[2:-2]) + 100
+        else:
+            speed_mph = int(str(wind_speeds[i])[2:-2])
+        wind_speeds[i] = round(speed_mph * 1.15078, 3) # convert from knots to mph
     
     airport_wind_info = {}
     for i in range(len(iata_codes)):
         if(str(iata_codes[i]) not in airports_lat_lon_info.keys()):
             continue
         # airport_wind_info[str(iata_codes[i])] = (wind_speeds[i] * math.sin(math.radians(wind_directions[i])), wind_speeds[i] * math.cos(math.radians(wind_directions[i])))
-        airport_wind_info[str(iata_codes[i])] = (wind_directions[i], wind_speeds[i] * 1.15078) # convert from knots to mph
+        airport_wind_info[str(iata_codes[i])] = (wind_directions[i], wind_speeds[i])
     
     return airport_wind_info
 
@@ -45,15 +56,14 @@ def define_nodes_and_wind():
         nodes[node_number].set_neighbors(neighbors)
         wind_lon, wind_lat = set_wind(lon_axis[i], lat_axis[j])
         nodes[node_number].set_wind(wind_lon, wind_lat)
-    print("Done defining nodes and wind")
+    # print("Done defining nodes and wind")
     return nodes
 
 def set_wind(lon, lat):
     
     # dictionary in format {iata_code : (wind_lon, wind_lat)}
     airport_wind_info = get_tsv_airport_wind()
-    print(airport_wind_info)
-    sys.exit()
+
     # list of tuples in format [distance from node, wind_lon, wind_lat] for each airport within 500 miles of node
     nearby_airports = []
     total_distance = 0
@@ -74,8 +84,6 @@ def set_wind(lon, lat):
 
     # print("(" + str(lon) + ", " + str(lat) + ")")
     return wind_lon, wind_lat
-
-#Origin:(-117.1611, 32.7157) Destination:(-74.006, 40.6712)
 
 def build_penalties_array(cpu_num, cpu_count, nodes, return_dict):
     
@@ -99,19 +107,17 @@ def build_penalties_array(cpu_num, cpu_count, nodes, return_dict):
                 this_penalties_dict[(i,j)] = penalty
 
     return_dict[cpu_num] = this_penalties_dict
-    print("Done building this_penalties_dict_" + str(cpu_num))
+    # print("Done building this_penalties_dict_" + str(cpu_num))
     # print(penalties_array)
 
 if __name__ == "__main__":
-    start_time_0 = time.perf_counter_ns()
+    # start_time_0 = time.perf_counter_ns()
     airports_lat_lon_info = utilities.get_csv_lat_lon()
     # make sure to match with make_path.py
     ngrid_lat, ngrid_lon = utilities.ngrid_lat, utilities.ngrid_lon
     usa_shp_df, usa_bbox, lon_axis, lat_axis = utilities.usa_shp_df, utilities.usa_bbox, utilities.lon_axis, utilities.lat_axis
 
     nodes = define_nodes_and_wind()
-    # print(nodes[99].wind_lon)
-    # print(nodes[99].wind_lat)
     np.save("nodes.npy", nodes, allow_pickle=True)
     
     start_time = time.perf_counter_ns()
@@ -127,7 +133,7 @@ if __name__ == "__main__":
         p.start()
     for process in processes:
         process.join()
-    print(len(return_dict))
+    # print(len(return_dict))
     
     for penalty_dict in list(return_dict.values()):
         for tuple in penalty_dict.keys():
@@ -137,9 +143,9 @@ if __name__ == "__main__":
     
     
     np.save("penalties_array.npy", penalties_array)
-    time_taken = round((time.perf_counter_ns() - start_time_0) * 1.0e-9, 4)
-    print(f"\nTime taken to build weights:{time_taken} seconds")
-    #print(penalties_array)
+    # time_taken = round((time.perf_counter_ns() - start_time_0) * 1.0e-9, 4)
+    # print(f"\nTime taken to build weights:{time_taken} seconds")
+    # print(penalties_array)
 
 
 
