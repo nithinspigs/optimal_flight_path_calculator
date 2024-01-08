@@ -16,18 +16,13 @@ function display_input(){
     console.log(origin_dest_input_template)
 }
 
-function display_plot(img){
+function display_plot(response){
   //display_input()
   $("#plot").empty();
-  var reader  = new FileReader();
-  reader.onload = function(e)  {
-    var image = document.createElement("img");
-    // the result image data
-    image.src = e.target.result;
-    $("#plot").append(image);
-  }
-  // you have to declare the file loading
-  reader.readAsDataURL(img);
+  //var plot_template = $("<div class = row></div>");
+  var plot_template = '<img src="' + response['uri'] + '" alt="plot" height=300 width=500></img>';
+  $("#plot").append(plot_template);
+  console.log(plot_template)
 }
 
 function new_plot(origin, dest){
@@ -37,12 +32,13 @@ function new_plot(origin, dest){
   $.ajax({
     type: "GET",
     url: "plot",
-    dataType: "jpeg",
+    dataType: "json",
     contentType: "application/json; charset=utf-8",
     data: origin_dest,
     // result is what server sends back to client upon success
-    success: function(result){
-        display_plot(result)
+    success: function(response){
+        console.log(response)
+        display_plot(response)
     },
     error: function(request, status, error){
         console.log("Error");

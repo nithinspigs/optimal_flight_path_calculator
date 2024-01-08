@@ -133,7 +133,7 @@ def process_results():
     ax.text(-124, 27, str3, color='gray',fontsize='small')
     
     plot_flight_paths(x_path_o_d, y_path_o_d, x_path_d_o, y_path_d_o)
-    plt.savefig("flight/" + str(origin_name) + "-" + str(dest_name) + ".jpeg")
+    plt.savefig("static/" + str(origin_name) + "-" + str(dest_name) + ".jpeg")
 
 def plot_flight_paths(x_path_o_d, y_path_o_d, x_path_d_o, y_path_d_o):
     nframes = 10
