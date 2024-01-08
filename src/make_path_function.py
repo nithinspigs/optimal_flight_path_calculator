@@ -2,6 +2,8 @@ import argparse
 import scipy
 from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import shortest_path
+import matplotlib
+matplotlib.use('agg')
 import matplotlib.pyplot as plt
 import sys
 import os
@@ -56,43 +58,74 @@ def get_orig_dest():
     
     return origin_i, origin_j, destination_i, destination_j
 
-def process_args():
-    parser = argparse.ArgumentParser(
-        description="Find the optimal flight path between an origin/destination"
-    )
-    parser.add_argument(
-        "--origin",
-        nargs='+',
-        help="IATA code of origin",
-        action="store",
-        required=True,
-        #type=string
-    )
-    parser.add_argument(
-        "--destination",
-        nargs='+',
-        help="IATA code of destination",
-        action="store",
-        required=True,
-        #type=string
-    )
-
-    args = parser.parse_args()
-    origin = airports_lat_lon_info[args.origin[0]]
-    destination = airports_lat_lon_info[args.destination[0]]
-    origin_name = args.origin[0]
-    dest_name = args.destination[0]
-    # print (args.origin[0], args.destination[0])
-    return origin, destination, origin_name, dest_name
-
 def build_csr_matrix():
     penalties = np.load("penalties_array.npy")
     # print(penalties[origin_node_number, dest_node_number])
     weights = csr_matrix(penalties)
     return weights
-    
-def process_results():
 
+def plot_flight_paths(x_path_o_d, y_path_o_d, x_path_d_o, y_path_d_o):
+    nframes = 10
+    lons_path_o_d, lats_path_o_d = [], []
+    lons_path_d_o, lats_path_d_o = [], []
+    for i in range(len(x_path_o_d)-1):
+        geodesic_lons, geodesic_lats = utilities.get_geodesic_path_coords_in_rectilinear_lon_lat(x_path_o_d[i], x_path_o_d[i+1], y_path_o_d[i], y_path_o_d[i+1], npts=nframes)
+        lons_path_o_d = lons_path_o_d + [x_path_o_d[i]] + geodesic_lons + [x_path_o_d[i+1]]
+        lats_path_o_d = lats_path_o_d + [y_path_o_d[i]] + geodesic_lats + [y_path_o_d[i+1]]
+    for i in range(len(x_path_d_o)-1):
+        geodesic_lons, geodesic_lats = utilities.get_geodesic_path_coords_in_rectilinear_lon_lat(x_path_d_o[i], x_path_d_o[i+1], y_path_d_o[i], y_path_d_o[i+1], npts=nframes)
+        lons_path_d_o = lons_path_d_o + [x_path_d_o[i]] + geodesic_lons + [x_path_d_o[i+1]]
+        lats_path_d_o = lats_path_d_o + [y_path_d_o[i]] + geodesic_lats + [y_path_d_o[i+1]]
+
+    plt.plot(lons_path_o_d, lats_path_o_d, color='g')
+    plt.plot(lons_path_d_o, lats_path_d_o, color='b')
+
+def initialize_plot():
+    ax = plt.axes()
+    usa_shp_df.boundary.plot(ax=ax, color='red', linewidth=1)
+
+    ax.text(lon_origin-1, lat_origin-1, "Origin", color='g', fontsize='small',fontweight='bold')
+    ax.text(lon_destination-1, lat_destination-1, "Dest", color='b', fontsize='small',fontweight='bold')
+    ax.set_xlim(usa_bbox[0], usa_bbox[2])
+    ax.set_ylim(usa_bbox[1], usa_bbox[3])
+    
+    geodesic_lons, geodesic_lats = utilities.get_geodesic_path_coords_in_rectilinear_lon_lat(lon_origin, lon_destination, lat_origin, lat_destination, npts=100)
+    geodesic_lons = [lon_origin] + geodesic_lons + [lon_destination]
+    geodesic_lats = [lat_origin] + geodesic_lats + [lat_destination]
+    plt.plot(geodesic_lons, geodesic_lats, color='k', linestyle='--')
+    return ax
+    
+def process_results(origin_name, dest_name):
+
+    # declare global variables
+    global airports_lat_lon_info, origin, destination, ngrid_lat, ngrid_lon, lon_origin, lat_origin, lon_destination, lat_destination, usa_shp_df, usa_bbox, lon_axis, lat_axis, origin_i, origin_j, destination_i, destination_j, origin_node_number, dest_node_number, ax, nodes, weights
+
+    # taken from main
+    airports_lat_lon_info = utilities.get_csv_lat_lon()
+    try:
+        origin = airports_lat_lon_info[origin_name]
+        destination = airports_lat_lon_info[dest_name]
+    except:
+        return "error"
+    
+    ngrid_lat, ngrid_lon = utilities.ngrid_lat, utilities.ngrid_lon
+    lon_origin, lat_origin, lon_destination, lat_destination = origin[1], origin[0], destination[1], destination[0]
+    usa_shp_df, usa_bbox, lon_axis, lat_axis = utilities.usa_shp_df, utilities.usa_bbox, utilities.lon_axis, utilities.lat_axis
+    origin_i, origin_j, destination_i, destination_j = get_orig_dest()
+    origin_node_number = utilities.get_node_number(origin_i, origin_j)
+    dest_node_number = utilities.get_node_number(destination_i, destination_j)
+    
+    fig = plt.figure(figsize=(12,8),dpi=720)
+    fig.set_layout_engine('tight')
+    ax = initialize_plot()
+    
+    nodes = nodes = np.load("nodes.npy", allow_pickle=True).item()
+    plot_wind(ax)
+
+    weights = build_csr_matrix()
+    
+    dist_matrix, predecessors = shortest_path(csgraph=weights, directed=True, indices=[origin_node_number, dest_node_number], return_predecessors=True)
+    
     # this is cost of going DIRECTLY from origin to destination, not accounting for the stops made along the way
     o_d_time = dist_matrix[0, dest_node_number]
     # print("direct o_d_cost with wind: " + str(o_d_cost))
@@ -134,69 +167,7 @@ def process_results():
     
     plot_flight_paths(x_path_o_d, y_path_o_d, x_path_d_o, y_path_d_o)
     plt.savefig("static/" + str(origin_name) + "-" + str(dest_name) + ".jpeg")
-
-def plot_flight_paths(x_path_o_d, y_path_o_d, x_path_d_o, y_path_d_o):
-    nframes = 10
-    lons_path_o_d, lats_path_o_d = [], []
-    lons_path_d_o, lats_path_d_o = [], []
-    for i in range(len(x_path_o_d)-1):
-        geodesic_lons, geodesic_lats = utilities.get_geodesic_path_coords_in_rectilinear_lon_lat(x_path_o_d[i], x_path_o_d[i+1], y_path_o_d[i], y_path_o_d[i+1], npts=nframes)
-        lons_path_o_d = lons_path_o_d + [x_path_o_d[i]] + geodesic_lons + [x_path_o_d[i+1]]
-        lats_path_o_d = lats_path_o_d + [y_path_o_d[i]] + geodesic_lats + [y_path_o_d[i+1]]
-    for i in range(len(x_path_d_o)-1):
-        geodesic_lons, geodesic_lats = utilities.get_geodesic_path_coords_in_rectilinear_lon_lat(x_path_d_o[i], x_path_d_o[i+1], y_path_d_o[i], y_path_d_o[i+1], npts=nframes)
-        lons_path_d_o = lons_path_d_o + [x_path_d_o[i]] + geodesic_lons + [x_path_d_o[i+1]]
-        lats_path_d_o = lats_path_d_o + [y_path_d_o[i]] + geodesic_lats + [y_path_d_o[i+1]]
-
-    plt.plot(lons_path_o_d, lats_path_o_d, color='g')
-    plt.plot(lons_path_d_o, lats_path_d_o, color='b')
-
-def initialize_plot():
-    ax = plt.axes()
-    usa_shp_df.boundary.plot(ax=ax, color='red', linewidth=1)
-
-    ax.text(lon_origin-1, lat_origin-1, "Origin", color='g', fontsize='small',fontweight='bold')
-    ax.text(lon_destination-1, lat_destination-1, "Dest", color='b', fontsize='small',fontweight='bold')
-    ax.set_xlim(usa_bbox[0], usa_bbox[2])
-    ax.set_ylim(usa_bbox[1], usa_bbox[3])
-    
-    geodesic_lons, geodesic_lats = utilities.get_geodesic_path_coords_in_rectilinear_lon_lat(lon_origin, lon_destination, lat_origin, lat_destination, npts=100)
-    geodesic_lons = [lon_origin] + geodesic_lons + [lon_destination]
-    geodesic_lats = [lat_origin] + geodesic_lats + [lat_destination]
-    plt.plot(geodesic_lons, geodesic_lats, color='k', linestyle='--')
-    return ax
-
-if __name__ == "__main__":
-    # start_time_0 = time.perf_counter_ns()
-    airports_lat_lon_info = utilities.get_csv_lat_lon()
-    origin, destination, origin_name, dest_name = process_args()
-    # make sure to match with make_penalties.py
-    ngrid_lat, ngrid_lon = utilities.ngrid_lat, utilities.ngrid_lon
-    lon_origin, lat_origin, lon_destination, lat_destination = origin[1], origin[0], destination[1], destination[0]
-    usa_shp_df, usa_bbox, lon_axis, lat_axis = utilities.usa_shp_df, utilities.usa_bbox, utilities.lon_axis, utilities.lat_axis
-    origin_i, origin_j, destination_i, destination_j = get_orig_dest()
-    origin_node_number = utilities.get_node_number(origin_i, origin_j)
-    dest_node_number = utilities.get_node_number(destination_i, destination_j)
-    # print(str(lon_origin) + ", " + str(lat_origin))
-    # print(str(lon_destination) + ", " + str(lat_destination))
-
-    fig = plt.figure(figsize=(12,8),dpi=720)
-    fig.set_layout_engine('tight')
-    ax = initialize_plot()
-
-    nodes = nodes = np.load("nodes.npy", allow_pickle=True).item()
-    plot_wind(ax)
-
-    start_time = time.perf_counter_ns()
-    weights = build_csr_matrix()
-    
-    dist_matrix, predecessors = shortest_path(csgraph=weights, directed=True, indices=[origin_node_number, dest_node_number], return_predecessors=True)
-
-    #print (dist_matrix)
-
-    process_results()
-    # time_taken = round((time.perf_counter_ns() - start_time_0) * 1.0e-9, 4)
-    # print( f"\nTotal Time taken:{time_taken} seconds\n")
+    return None
 
 
 

@@ -4,7 +4,7 @@ This is an application that plots the most optimal flight path between an origin
 
 Here is an example flight path where the grid is broken into 40 points along both the longitudinal and latitudinal axes (1600 "nodes" in total).
 
-![SAN-JFK](./flight/SAN-JFK.jpeg)
+![SAN-JFK](./SAN-JFK.jpeg)
 
 ## Summary
 

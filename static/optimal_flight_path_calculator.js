@@ -25,6 +25,13 @@ function display_plot(response){
   console.log(plot_template)
 }
 
+function display_error(){
+    $("#plot").empty();
+    var error_template = $("<div><i>Origin or destination error</i></div>");
+    $("#plot").append(error_template);
+    console.log(error_template)
+}
+
 function new_plot(origin, dest){
   console.log(origin)
   console.log(dest)
@@ -38,7 +45,10 @@ function new_plot(origin, dest){
     // result is what server sends back to client upon success
     success: function(response){
         console.log(response)
-        display_plot(response)
+        if(response['uri'].localeCompare("error") == 0)
+            display_error()
+        else
+            display_plot(response)
     },
     error: function(request, status, error){
         console.log("Error");
