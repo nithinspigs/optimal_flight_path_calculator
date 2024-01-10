@@ -25,16 +25,17 @@ function display_plot(response){
   console.log(plot_template)
 }
 
-function display_error(){
+function display_msg(msg){
     $("#plot").empty();
-    var error_template = $("<div><i>Origin or destination error</i></div>");
-    $("#plot").append(error_template);
-    console.log(error_template)
+    var msg_template = $("<div><i>" + msg + "</i></div>");
+    $("#plot").append(msg_template);
+    console.log(msg_template)
 }
 
 function new_plot(origin, dest){
   console.log(origin)
   console.log(dest)
+  display_msg("Generating plot…")
   var origin_dest = {"origin": origin, "dest": dest}
   $.ajax({
     type: "GET",
@@ -46,7 +47,7 @@ function new_plot(origin, dest){
     success: function(response){
         console.log(response)
         if(response['uri'].localeCompare("error") == 0)
-            display_error()
+            display_msg("Origin or destination error")
         else
             display_plot(response)
     },

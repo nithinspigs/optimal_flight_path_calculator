@@ -97,6 +97,7 @@ def build_penalties_array(cpu_num, cpu_count, nodes, return_dict):
         #if(i==0):
             #i = i + int(cpu_num / cpu_count * len(nodes))
         #this_node_numbers_list.append(i)
+        print("Node: " + str(i))
         # neighbors
         for j in range(len(nodes)):
             

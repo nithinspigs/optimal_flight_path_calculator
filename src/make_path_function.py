@@ -76,7 +76,10 @@ def plot_flight_paths(x_path_o_d, y_path_o_d, x_path_d_o, y_path_d_o):
         geodesic_lons, geodesic_lats = utilities.get_geodesic_path_coords_in_rectilinear_lon_lat(x_path_d_o[i], x_path_d_o[i+1], y_path_d_o[i], y_path_d_o[i+1], npts=nframes)
         lons_path_d_o = lons_path_d_o + [x_path_d_o[i]] + geodesic_lons + [x_path_d_o[i+1]]
         lats_path_d_o = lats_path_d_o + [y_path_d_o[i]] + geodesic_lats + [y_path_d_o[i+1]]
-
+        
+    geodesic_lons, geodesic_lats = utilities.get_geodesic_path_coords_in_rectilinear_lon_lat(x_path_o_d[0], x_path_o_d[-1], y_path_o_d[0], y_path_o_d[-1], npts=100)
+    
+    plt.plot(geodesic_lons, geodesic_lats, color='k', linestyle='--')
     plt.plot(lons_path_o_d, lats_path_o_d, color='g')
     plt.plot(lons_path_d_o, lats_path_d_o, color='b')
 
@@ -89,10 +92,6 @@ def initialize_plot():
     ax.set_xlim(usa_bbox[0], usa_bbox[2])
     ax.set_ylim(usa_bbox[1], usa_bbox[3])
     
-    geodesic_lons, geodesic_lats = utilities.get_geodesic_path_coords_in_rectilinear_lon_lat(lon_origin, lon_destination, lat_origin, lat_destination, npts=100)
-    geodesic_lons = [lon_origin] + geodesic_lons + [lon_destination]
-    geodesic_lats = [lat_origin] + geodesic_lats + [lat_destination]
-    plt.plot(geodesic_lons, geodesic_lats, color='k', linestyle='--')
     return ax
     
 def process_results(origin_name, dest_name):
@@ -166,7 +165,7 @@ def process_results(origin_name, dest_name):
     ax.text(-124, 27, str3, color='gray',fontsize='small')
     
     plot_flight_paths(x_path_o_d, y_path_o_d, x_path_d_o, y_path_d_o)
-    plt.savefig("static/" + str(origin_name) + "-" + str(dest_name) + ".jpeg")
+    plt.savefig("static/images/" + str(origin_name) + "-" + str(dest_name) + ".jpeg")
     return None
 
 
