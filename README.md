@@ -50,5 +50,5 @@ The application uses wind data from the Aviation Weather Center to determine the
         make requirements/requirements.txt
 
     3. Run: (all commands are run from the _optimal_flight_path/_ directory)
-        python src/optimal_flight_path_calculator/make_penalties_nodes.py
-        python src/optimal_flight_path_calculator/make_path.py
+        python src/make_penalties_nodes.py
+        python src/make_path.py

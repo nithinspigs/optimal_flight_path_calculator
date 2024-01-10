@@ -16,10 +16,6 @@ class Node:
         self.j = j
         self.lon = lon
         self.lat = lat
-        self.neighbor_node_numbers: list[int] = []
-
-    def set_neighbors (self, neighbors):
-        self.neighbor_node_numbers = neighbors
 
     def set_wind(self, wind_lon, wind_lat):
         self.wind_lon = wind_lon
@@ -128,7 +124,7 @@ def find_wind(lon, lat, nodes):
 
     return wind_lon, wind_lat
     
-ngrid_lat, ngrid_lon = 40, 40
+ngrid_lat, ngrid_lon = 20, 20
 usa_shp_df, usa_bbox, lon_axis, lat_axis = get_grid_lat_lon()
 geodesic_projection = pyproj.Geod(ellps='WGS84')
 #nodes = np.load("nodes.npy", allow_pickle=True).item()
