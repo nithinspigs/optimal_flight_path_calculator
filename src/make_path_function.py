@@ -161,7 +161,7 @@ def process_results(origin_name, dest_name):
     y_path_d_o = [nodes[i].lat for i in d_o_path]
     plt.scatter(x_path_d_o, y_path_d_o, color='b', marker='o')
     
-    str3 = origin_name + " => " + dest_name + ": " + str(round(utilities.get_geodesic_distance(lon_origin, lat_origin, lon_destination, lat_destination) / 500, 3)) + " hours"
+    str3 = origin_name + " <=> " + dest_name + " (no wind): " + str(round(utilities.get_geodesic_distance(lon_origin, lat_origin, lon_destination, lat_destination) / 500, 3)) + " hours"
     ax.text(-124, 27, str3, color='gray',fontsize='small')
     
     plot_flight_paths(x_path_o_d, y_path_o_d, x_path_d_o, y_path_d_o)

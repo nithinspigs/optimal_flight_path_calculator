@@ -30,7 +30,7 @@ def plot():
     #first need to run make_path.py to create the image
     #response = {'uri': os.path.join(server.root_path, "flight/SAN-JFK.jpeg")}
     response = {'uri': uri}
-    print(response)
+    #print(response)
     # if user just types http://127.0.0.1:5000/plot?origin=SAN&dest=JFK into the browser, flask will directly send the uri, bypassing the javascript
     return flask.jsonify(response)
     #return flask.send_file("../../flight/SAN-JFK.jpeg")
