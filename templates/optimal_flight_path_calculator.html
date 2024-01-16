@@ -1,0 +1,33 @@
+<header>
+    <h1>
+        Optimal Flight Path Calculator
+    </h1>
+</header>
+<p>
+<script src="http://code.jquery.com/jquery-3.3.1.min.js"></script>
+<script src="https://code.jquery.com/ui/1.12.0/jquery-ui.min.js"></script>
+<script type="text/javascript" src="{{ url_for('static', filename = 'optimal_flight_path_calculator.js') }}"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='styles/main.css') }}">
+<!--<form method=GET action=/plot>
+    Origin:<input type=text name=origin>
+    Destination: <input type=text name=dest>
+    <input type=submit>
+</form>-->
+<div class="contents">
+    <div id="origin_dest_input">
+        
+    </div>
+</div>
+<p>
+<div class="contents">
+    <div id="plot">
+
+    </div>
+    <div id="msg">
+
+    </div>
+    <div id="error">
+
+    </div>
+</div>
+<p>

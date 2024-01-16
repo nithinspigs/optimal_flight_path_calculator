@@ -21,7 +21,9 @@ def get_tsv_airport_wind():
     wind_directions = list(airport_wind["30000"])
     for i in range(len(wind_directions)):
         degrees = 0
-        if(int(str(wind_directions[i])[:1]) > 4):
+        if(int(str(wind_directions[i])[:2]) == 99):
+            degrees == 0
+        elif(int(str(wind_directions[i])[:1]) > 4):
             degrees = (int(str(wind_directions[i])[:2]) - 50) * 10
         else:
             degrees = int(str(wind_directions[i])[:2]) * 10
@@ -29,8 +31,10 @@ def get_tsv_airport_wind():
     
     wind_speeds = list(airport_wind["30000"])
     for i in range(len(wind_speeds)):
-        speed = 0
-        if(int(str(wind_directions[i])[:1]) > 4):
+        speed_mph = 0
+        if(int(str(wind_speeds[i])[:2]) == 99):
+            speed_mph == 5
+        elif(int(str(wind_speeds[i])[:1]) > 4):
             speed_mph = int(str(wind_speeds[i])[2:-2]) + 100
         else:
             speed_mph = int(str(wind_speeds[i])[2:-2])
@@ -47,13 +51,11 @@ def get_tsv_airport_wind():
 
 def define_nodes_and_wind():
     nodes: dict[int, Any] = {}
-    neighbors = list(range(ngrid_lat * ngrid_lon))
     for i, j in itertools.product(range(len(lon_axis)), range(len(lat_axis))):
         # print("(" + str(i) + ", " + str(j) + ")")
         node_number = utilities.get_node_number (i,j)
         #print (f"i:{i} j:{j} node:{node_number} lon:{lon_axis[i]} lat:{lat_axis[j]}")
         nodes[node_number] = utilities.Node(i, j, lon_axis[i], lat_axis[j])
-        nodes[node_number].set_neighbors(neighbors)
         wind_lon, wind_lat = set_wind(lon_axis[i], lat_axis[j])
         nodes[node_number].set_wind(wind_lon, wind_lat)
     # print("Done defining nodes and wind")
@@ -89,23 +91,28 @@ def build_penalties_array(cpu_num, cpu_count, nodes, return_dict):
     
     import utilities
     this_penalties_dict = {}
+    #this_node_numbers_list = []
     
     for i in range(int(cpu_num / cpu_count * len(nodes)), int((cpu_num+1) / cpu_count * len(nodes))):
-        if(i==0):
-            i = i + int(cpu_num / cpu_count * len(nodes))
+        #if(i==0):
+            #i = i + int(cpu_num / cpu_count * len(nodes))
+        #this_node_numbers_list.append(i)
+        print("Node: " + str(i))
         # neighbors
         for j in range(len(nodes)):
             
-            print("Node: " + str(i))
-            print("Neighbor Node: " + str(j))
+            #print("Node: " + str(i))
+            #print("Neighbor Node: " + str(j))
             #print(cpu_num)
             if(i != j):
                 penalty = utilities.get_travel_time(nodes[i], nodes[j], nodes)
                 if(penalty <= 0):
                     print("negative or zero penalty")
-                    exit()
+                    print("(" + str(i) + ", " + str(j) + ")")
+                    #exit()
                 this_penalties_dict[(i,j)] = penalty
 
+    #print(this_node_numbers_list)
     return_dict[cpu_num] = this_penalties_dict
     # print("Done building this_penalties_dict_" + str(cpu_num))
     # print(penalties_array)
